@@ -87,12 +87,13 @@ export default function OnboardingPage() {
 
   const canContinue = () => {
     switch (state.currentPhase) {
-      case 'INITIALIZATION':
+      case 'INITIALIZATION': {
         const roleSelected = state.selectedRoles.length > 0;
         if (state.identity.authMethod === 'PASSWORD') {
           return roleSelected && state.identity.email.includes('@');
         }
         return roleSelected;
+      }
       case 'COMPLIANCE':
         return state.compliance.legalName.length > 2 && state.compliance.jurisdiction !== '';
       case 'FINANCIAL_STRUCTURING':
@@ -554,83 +555,167 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                {/* ═══ RISK CALIBRATION ═══ */}
+                {/* ═══ RISK PROFILE ═══ */}
                 {state.currentPhase === 'RISK_CALIBRATION' && (
                   <div className="space-y-12">
                     <div className="space-y-4">
                       <h1 className="text-2xl font-light uppercase tracking-tighter">Risk Profile</h1>
                       <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Defining your risk parameters to ensure the engine operates according to your preferences.
+                        Help us understand your comfort level so we can tailor the experience to you.
                       </p>
                     </div>
 
-                    <div className="space-y-6">
-                       <div className="p-8 border border-border-dark bg-white/5 relative overflow-hidden backdrop-blur-sm">
-                         <div className="absolute top-0 right-0 p-4 opacity-5">
-                           <span className="material-symbols-outlined text-[80px] text-white">analytics</span>
-                         </div>
-                         <span className="text-[10px] uppercase tracking-[0.3em] text-[#888] block mb-6">Interactive Stress Simulation</span>
-                         <div className="space-y-6 relative z-10">
-                           <p className="text-sm text-white leading-relaxed font-light">
-                             "SCENARIO: Macro volatility event causes 20% systemic income reduction. 
-                             Liquidity buffer thresholds reached. Engine requires response policy."
-                           </p>
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                             <button className="border border-white py-4 text-[10px] uppercase bg-white text-black font-bold hover:bg-[#888] transition-all">Harden Buffers</button>
-                             <button className="border border-border-dark py-4 text-[10px] uppercase hover:border-white transition-all text-white">Aggressive Deploy</button>
-                           </div>
-                         </div>
-                       </div>
+                    {/* ── Borrower Risk Profile ── */}
+                    {state.selectedRoles.includes('BORROWER') && (
+                      <div className="space-y-6">
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white">Borrower Preferences</span>
 
-                       <div className="grid grid-cols-3 gap-4 h-32">
-                        {[1, 2, 3].map(i => (
-                          <div key={i} className="border border-[#1a1a1a] flex flex-col items-center justify-center p-4 relative bg-background-dark group">
-                            <div className="h-full w-px bg-border-dark absolute left-1/2 -ml-px group-hover:bg-white transition-colors" />
-                            <div className={`size-3 border border-white absolute transition-all ${i === 1 ? 'top-[20%]' : i === 2 ? 'top-[60%]' : 'top-[10%]'}`} />
-                            <span className="text-[8px] text-[#4a4a4a] mt-auto uppercase tracking-widest">Vector_{i}</span>
+                        <div className="p-6 border border-border-dark bg-white/5 space-y-6">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-baseline">
+                              <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Repayment Comfort Level</label>
+                              <span className="text-lg font-bold">{state.financial.riskTolerance}%</span>
+                            </div>
+                            <input 
+                              type="range" 
+                              min="0" max="100" 
+                              value={state.financial.riskTolerance}
+                              onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, riskTolerance: parseInt(e.target.value) } }))}
+                              className="w-full accent-white appearance-none h-px bg-border-dark cursor-pointer"
+                            />
+                            <div className="flex justify-between text-[9px] text-[#4a4a4a] uppercase tracking-widest">
+                              <span>Conservative</span>
+                              <span>Aggressive</span>
+                            </div>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">What matters most to you?</label>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {[
+                              { icon: 'shield', label: 'Low Rates' },
+                              { icon: 'speed', label: 'Fast Funding' },
+                              { icon: 'tune', label: 'Flexibility' },
+                            ].map((pref) => (
+                              <button key={pref.label} className="p-4 border border-border-dark text-left hover:border-white transition-all group">
+                                <span className="material-symbols-outlined text-lg mb-2 text-[#4a4a4a] group-hover:text-white transition-colors">{pref.icon}</span>
+                                <span className="text-[10px] uppercase tracking-widest block">{pref.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* ── Lender Risk Profile ── */}
+                    {state.selectedRoles.includes('LENDER') && (
+                      <div className="space-y-6">
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white">Lender Preferences</span>
+
+                        <div className="p-6 border border-border-dark bg-white/5 space-y-6">
+                          <div className="space-y-4">
+                            <div className="flex justify-between items-baseline">
+                              <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Default Tolerance</label>
+                              <span className="text-lg font-bold">{state.financial.riskTolerance}%</span>
+                            </div>
+                            <input 
+                              type="range" 
+                              min="0" max="100" 
+                              value={state.financial.riskTolerance}
+                              onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, riskTolerance: parseInt(e.target.value) } }))}
+                              className="w-full accent-white appearance-none h-px bg-border-dark cursor-pointer"
+                            />
+                            <div className="flex justify-between text-[9px] text-[#4a4a4a] uppercase tracking-widest">
+                              <span>Low Risk / Low Yield</span>
+                              <span>High Risk / High Yield</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Portfolio Strategy</label>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {[
+                              { icon: 'savings', label: 'Capital Preservation' },
+                              { icon: 'balance', label: 'Balanced Growth' },
+                              { icon: 'trending_up', label: 'Yield Maximiser' },
+                            ].map((strat) => (
+                              <button key={strat.label} className="p-4 border border-border-dark text-left hover:border-white transition-all group">
+                                <span className="material-symbols-outlined text-lg mb-2 text-[#4a4a4a] group-hover:text-white transition-colors">{strat.icon}</span>
+                                <span className="text-[10px] uppercase tracking-widest block">{strat.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* ═══ PERMISSIONS ═══ */}
+                {/* ═══ ACCESS RIGHTS ═══ */}
                 {state.currentPhase === 'PERMISSIONS' && (
                   <div className="space-y-12">
                     <div className="space-y-4">
-                      <h1 className="text-2xl font-light uppercase tracking-tighter">System Permissions</h1>
+                      <h1 className="text-2xl font-light uppercase tracking-tighter">Access Rights</h1>
                       <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Identity verification processed. Protocol intent confirmed. Initializing 
-                        operational access keys and dashboard route maps.
+                        Here{"'"}s what you{"'"}ll be able to do on Quantara based on your profile.
                       </p>
                     </div>
 
-                    <div className="space-y-4">
-                      {[
-                        { scope: 'READ_ACCESS', status: 'AUTHORIZED', desc: 'Symmetric data visibility', icon: 'visibility' },
-                        { scope: 'CONTRACT_INIT', status: 'AUTHORIZED', desc: 'Securitization execution rights', icon: 'account_tree' },
-                        { scope: 'LEDGER_WRITE', status: 'AUTHORIZED', desc: 'Signature authority assigned', icon: 'draw' },
-                        { scope: 'RISK_READ', status: 'AUTHORIZED', desc: 'Real-time telemetry access', icon: 'sensors' },
-                      ].map(perm => (
-                        <div key={perm.scope} className="flex items-center justify-between p-4 border border-border-dark bg-black/40 group hover:border-white/40 transition-all">
-                          <div className="flex items-center gap-4">
-                            <span className="material-symbols-outlined text-[#4a4a4a] text-lg group-hover:text-white transition-colors">{perm.icon}</span>
-                            <div>
-                              <span className="text-xs font-bold block">{perm.scope}</span>
-                              <span className="text-[9px] text-[#4a4a4a] uppercase tracking-widest mt-1 block">{perm.desc}</span>
+                    {state.selectedRoles.includes('BORROWER') && (
+                      <div className="space-y-4">
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white">Borrower Access</span>
+                        {[
+                          { scope: 'View Loans', desc: 'Browse available credit options', icon: 'visibility', status: 'ENABLED' },
+                          { scope: 'Submit Applications', desc: 'Apply for income-backed loans', icon: 'edit_note', status: 'ENABLED' },
+                          { scope: 'Track Repayments', desc: 'Monitor your repayment schedule', icon: 'receipt_long', status: 'ENABLED' },
+                          { scope: 'Income Verification', desc: 'Link and manage income sources', icon: 'link', status: 'ENABLED' },
+                        ].map(perm => (
+                          <div key={perm.scope} className="flex items-center justify-between p-4 border border-border-dark bg-black/40 group hover:border-white/40 transition-all">
+                            <div className="flex items-center gap-4">
+                              <span className="material-symbols-outlined text-[#4a4a4a] text-lg group-hover:text-white transition-colors">{perm.icon}</span>
+                              <div>
+                                <span className="text-xs font-bold block">{perm.scope}</span>
+                                <span className="text-[9px] text-[#4a4a4a] uppercase tracking-widest mt-1 block">{perm.desc}</span>
+                              </div>
                             </div>
+                            <span className="text-[9px] text-white border border-white/20 px-2 py-1 uppercase tracking-tighter group-hover:border-white transition-all">
+                              {perm.status}
+                            </span>
                           </div>
-                          <span className="text-[9px] text-white border border-white/20 px-2 py-1 uppercase tracking-tighter group-hover:border-white transition-all">
-                            {perm.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {state.selectedRoles.includes('LENDER') && (
+                      <div className="space-y-4">
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white">Lender Access</span>
+                        {[
+                          { scope: 'Browse Marketplace', desc: 'Explore income-backed credit opportunities', icon: 'storefront', status: 'ENABLED' },
+                          { scope: 'Deploy Capital', desc: 'Fund loans and earn yield', icon: 'rocket_launch', status: 'ENABLED' },
+                          { scope: 'Monitor Returns', desc: 'Track portfolio performance in real time', icon: 'analytics', status: 'ENABLED' },
+                          { scope: 'Risk Dashboard', desc: 'View exposure and default metrics', icon: 'monitoring', status: 'ENABLED' },
+                        ].map(perm => (
+                          <div key={perm.scope} className="flex items-center justify-between p-4 border border-border-dark bg-black/40 group hover:border-white/40 transition-all">
+                            <div className="flex items-center gap-4">
+                              <span className="material-symbols-outlined text-[#4a4a4a] text-lg group-hover:text-white transition-colors">{perm.icon}</span>
+                              <div>
+                                <span className="text-xs font-bold block">{perm.scope}</span>
+                                <span className="text-[9px] text-[#4a4a4a] uppercase tracking-widest mt-1 block">{perm.desc}</span>
+                              </div>
+                            </div>
+                            <span className="text-[9px] text-white border border-white/20 px-2 py-1 uppercase tracking-tighter group-hover:border-white transition-all">
+                              {perm.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* ═══ ACTIVATION ═══ */}
+                {/* ═══ FINISH ═══ */}
                 {state.currentPhase === 'ACTIVATION' && (
                   <div className="space-y-12">
                     <div className="text-center space-y-6">
@@ -638,44 +723,38 @@ export default function OnboardingPage() {
                         <span className="material-symbols-outlined text-black text-4xl">check_circle</span>
                       </div>
                       <div className="space-y-4">
-                      <h1 className="text-2xl font-light uppercase tracking-tighter text-white">Setup Complete</h1>
-                      <p className="text-[#888] text-[10px] uppercase tracking-[0.4em]">Account Verified // Access Granted</p>
-                    </div>
+                        <h1 className="text-2xl font-light uppercase tracking-tighter text-white">You{"'"}re All Set</h1>
+                        <p className="text-[#888] text-[10px] uppercase tracking-[0.4em]">Account Verified // Access Granted</p>
+                      </div>
                     </div>
 
                     <div className="bg-[#0c0c0c] border border-border-dark p-8 space-y-8">
                       <div className="space-y-4">
-                        <span className="text-[10px] uppercase tracking-[0.3em] text-white block">Next Actions</span>
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white block">Go to your Dashboard</span>
                         <div className="space-y-2">
                           {state.selectedRoles.includes('BORROWER') && (
                             <Link href="/borrower" className="w-full p-4 border border-border-dark flex items-center justify-between group hover:border-white transition-all bg-white/5">
                               <div className="flex items-center gap-3">
                                 <span className="material-symbols-outlined text-sm">payments</span>
-                                <span className="text-xs uppercase font-bold tracking-widest">Access Borrower Dashboard</span>
+                                <span className="text-xs uppercase font-bold tracking-widest">Borrower Dashboard</span>
                               </div>
-                              <svg className="size-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                              </svg>
+                              <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
                             </Link>
                           )}
                           {state.selectedRoles.includes('LENDER') && (
                             <Link href="/terminal" className="w-full p-4 border border-border-dark flex items-center justify-between group hover:border-white transition-all bg-white/5">
                               <div className="flex items-center gap-3">
                                 <span className="material-symbols-outlined text-sm">account_balance</span>
-                                <span className="text-xs uppercase font-bold tracking-widest">Launch Capital Terminal</span>
+                                <span className="text-xs uppercase font-bold tracking-widest">Lender Dashboard</span>
                               </div>
-                              <svg className="size-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                              </svg>
+                              <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
                             </Link>
                           )}
                         </div>
                       </div>
 
                       <div className="pt-8 border-t border-border-dark flex justify-between items-center text-[10px] text-[#4a4a4a] uppercase">
-                        <div className="flex gap-4">
-                          <span>Secure Session Active</span>
-                        </div>
+                        <span>Secure Session Active</span>
                         <span className="text-white">Welcome to Quantara</span>
                       </div>
                     </div>
