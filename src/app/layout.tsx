@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/components/core/QueryProvider";
+import { AOSProvider } from "@/components/core/AOSProvider";
 
 export const metadata: Metadata = {
   title: "Quantara — Institutional Financial Infrastructure",
@@ -16,9 +17,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+      </head>
       <body className="bg-background-dark text-white font-sans antialiased min-h-screen selection:bg-white selection:text-black">
         <QueryProvider>
-          {children}
+          <AOSProvider>
+            {children}
+          </AOSProvider>
         </QueryProvider>
       </body>
     </html>
