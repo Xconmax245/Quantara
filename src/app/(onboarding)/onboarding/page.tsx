@@ -12,7 +12,7 @@ type OnboardingPhase =
   | 'PERMISSIONS' 
   | 'ACTIVATION';
 
-type Role = 'BORROWER' | 'ALLOCATOR' | 'OPERATOR';
+type Role = 'BORROWER' | 'LENDER';
 
 interface OnboardingState {
   currentPhase: OnboardingPhase;
@@ -34,6 +34,8 @@ interface OnboardingState {
     capitalSource: string;
     riskTolerance: number; // 0-100
     preferredSectors: string[];
+    annualVolume?: string;
+    deploymentLimit?: string;
   };
   progress: number;
 }
@@ -68,6 +70,8 @@ export default function OnboardingPage() {
       capitalSource: '',
       riskTolerance: 50,
       preferredSectors: [],
+      annualVolume: '',
+      deploymentLimit: '',
     },
     progress: 16.6,
   });
@@ -81,7 +85,23 @@ export default function OnboardingPage() {
     console.log(`[AUDIT] ${entry.timestamp}: ${entry.step}`);
   };
 
+  const canContinue = () => {
+    switch (state.currentPhase) {
+      case 'INITIALIZATION':
+        return state.selectedRoles.length > 0 && state.identity.email.includes('@');
+      case 'COMPLIANCE':
+        return state.compliance.legalName.length > 2 && state.compliance.jurisdiction !== '';
+      case 'FINANCIAL_STRUCTURING':
+        if (state.selectedRoles.includes('BORROWER')) return (state.financial.annualVolume?.length ?? 0) > 0;
+        if (state.selectedRoles.includes('LENDER')) return (state.financial.deploymentLimit?.length ?? 0) > 0;
+        return true;
+      default:
+        return true;
+    }
+  };
+
   const nextPhase = () => {
+    if (!canContinue()) return;
     const currentIndex = PHASES.findIndex(p => p.id === state.currentPhase);
     if (currentIndex < PHASES.length - 1) {
       const nextP = PHASES[currentIndex + 1].id;
@@ -105,17 +125,6 @@ export default function OnboardingPage() {
       }));
       logAction(`Reverted to ${prevP}`);
     }
-  };
-
-  const toggleRole = (role: Role) => {
-    setState(prev => {
-      const isSelected = prev.selectedRoles.includes(role);
-      const nextRoles = isSelected 
-        ? prev.selectedRoles.filter(r => r !== role)
-        : [...prev.selectedRoles, role];
-      return { ...prev, selectedRoles: nextRoles };
-    });
-    logAction(`Toggled role: ${role}`);
   };
 
   return (
@@ -231,55 +240,81 @@ export default function OnboardingPage() {
                   <div className="space-y-12">
                     <div className="space-y-4">
                       <h1 className="text-2xl font-light uppercase tracking-tighter">Initialize Operational Identity</h1>
-                      <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Establish authenticated context. Quantara requires session initialization 
-                        before compliance provisioning.
-                      </p>
+                      <div className="space-y-4 max-w-lg">
+                        <p className="text-[#888] text-sm leading-relaxed">
+                          Establish authenticated context. Quantara requires session initialization 
+                          before compliance provisioning.
+                        </p>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Institutional Email</label>
+                          <input 
+                            type="email"
+                            value={state.identity.email}
+                            onChange={(e) => setState(prev => ({ ...prev, identity: { ...prev.identity, email: e.target.value } }))}
+                            className="w-full bg-transparent border border-border-dark p-4 text-sm focus:border-white focus:outline-none transition-all placeholder:text-border-dark" 
+                            placeholder="OPERATOR@CORE.QUANTARA.IO"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-8">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <button className="border border-white p-6 text-left hover:bg-white hover:text-black transition-all group">
-                          <span className="text-[10px] uppercase tracking-widest block mb-4 group-hover:text-black/60">Method 01</span>
-                          <span className="text-lg font-bold block">Auth0 Layer</span>
-                          <span className="text-[10px] text-[#4a4a4a] block mt-1 group-hover:text-black/40">EMAIL / PASSWORD / MFA</span>
-                        </button>
-                        <button className="border border-border-dark p-6 text-left hover:border-white transition-all group">
-                          <span className="text-[10px] uppercase tracking-widest block mb-4 text-[#4a4a4a]">Method 02</span>
-                          <span className="text-lg font-bold block">Web3 Layer</span>
-                          <span className="text-[10px] text-[#4a4a4a] block mt-1">WALLET CONNECT / EIP-4361</span>
-                        </button>
+                      <div className="p-6 border border-border-dark bg-white/5 space-y-6">
+                        <div className="flex items-center gap-3">
+                          <span className="material-symbols-outlined text-white">fingerprint</span>
+                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Security Protocol Selection</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <button 
+                            onClick={() => setState(prev => ({ ...prev, identity: { ...prev.identity, authMethod: 'PASSWORD' } }))}
+                            className={`p-4 border text-left transition-all ${state.identity.authMethod === 'PASSWORD' ? 'border-white bg-white/10' : 'border-border-dark text-[#888] hover:border-white/50'}`}
+                          >
+                            <span className="text-[10px] block mb-1">Method A</span>
+                            <span className="text-xs font-bold block uppercase">Institutional Auth</span>
+                          </button>
+                          <button 
+                            onClick={() => setState(prev => ({ ...prev, identity: { ...prev.identity, authMethod: 'WALLET' } }))}
+                            className={`p-4 border text-left transition-all ${state.identity.authMethod === 'WALLET' ? 'border-white bg-white/10' : 'border-border-dark text-[#888] hover:border-white/50'}`}
+                          >
+                            <span className="text-[10px] block mb-1">Method B</span>
+                            <span className="text-xs font-bold block uppercase">Web3 Identity</span>
+                          </button>
+                        </div>
                       </div>
 
                       <div className="border-t border-border-dark pt-12">
                         <span className="text-[10px] uppercase tracking-[0.3em] text-[#4a4a4a] block mb-6">Select Operational Intent</span>
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {[
-                            { id: 'BORROWER', title: 'I provide structured income', desc: 'BORROWER / OPERATIONAL ENTITY' },
-                            { id: 'ALLOCATOR', title: 'I allocate capital', desc: 'CAPITAL ALLOCATOR / INSTITUTION' },
-                            { id: 'OPERATOR', title: 'I oversee system risk', desc: 'PROTOCOL OPERATOR / ADMIN' },
+                            { id: 'BORROWER', title: 'Borrower', desc: 'I provide structured income', icon: 'payments' },
+                            { id: 'LENDER', title: 'Lender', desc: 'I allocate capital', icon: 'account_balance' },
                           ].map((role) => (
                             <button
                               key={role.id}
-                              onClick={() => toggleRole(role.id as Role)}
-                              className={`w-full p-6 border text-left transition-all flex items-center justify-between ${
+                              onClick={() => setState(prev => ({ ...prev, selectedRoles: [role.id as Role] }))}
+                              className={`p-6 border text-left transition-all relative group overflow-hidden ${
                                 state.selectedRoles.includes(role.id as Role)
                                   ? 'bg-white text-black border-white'
-                                  : 'border-border-dark text-white hover:border-border-light'
+                                  : 'border-border-dark text-white hover:border-white/50'
                               }`}
                             >
-                              <div>
-                                <span className="text-sm font-bold block">{role.title}</span>
+                              <div className="relative z-10">
+                                <span className={`material-symbols-outlined mb-4 block transition-colors ${
+                                  state.selectedRoles.includes(role.id as Role) ? 'text-black' : 'text-[#4a4a4a]'
+                                }`}>
+                                  {role.icon}
+                                </span>
+                                <span className="text-sm font-bold block uppercase tracking-wider">{role.title}</span>
                                 <span className={`text-[10px] block mt-1 ${
                                   state.selectedRoles.includes(role.id as Role) ? 'text-black/60' : 'text-text-dark'
                                 }`}>{role.desc}</span>
                               </div>
-                              <div className={`size-4 border flex items-center justify-center ${
-                                state.selectedRoles.includes(role.id as Role) ? 'border-black' : 'border-border-dark'
-                              }`}>
-                                {state.selectedRoles.includes(role.id as Role) && (
-                                  <div className="size-2 bg-black" />
-                                )}
+                              <div className="absolute top-2 right-2">
+                                <div className={`size-4 border flex items-center justify-center ${
+                                  state.selectedRoles.includes(role.id as Role) ? 'border-black' : 'border-border-dark'
+                                }`}>
+                                  {state.selectedRoles.includes(role.id as Role) && <div className="size-2 bg-black" />}
+                                </div>
                               </div>
                             </button>
                           ))}
@@ -295,8 +330,8 @@ export default function OnboardingPage() {
                     <div className="space-y-4">
                       <h1 className="text-2xl font-light uppercase tracking-tighter text-white">Compliance & Legal Layer</h1>
                       <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Configuring statutory verification parameters based on selected role: 
-                        <span className="text-white ml-2">{state.selectedRoles.join(' + ')}</span>
+                        Establishing legal jurisdiction and entity parameters for 
+                        <span className="text-white ml-2 font-bold">{state.selectedRoles.join(' + ')}</span> operations.
                       </p>
                     </div>
 
@@ -304,6 +339,8 @@ export default function OnboardingPage() {
                       <div className="space-y-2">
                         <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Legal Entity Name</label>
                         <input 
+                          value={state.compliance.legalName}
+                          onChange={(e) => setState(prev => ({ ...prev, compliance: { ...prev.compliance, legalName: e.target.value } }))}
                           className="w-full bg-transparent border border-border-dark p-4 text-sm focus:border-white focus:outline-none transition-all placeholder:text-border-dark" 
                           placeholder="FULL LEGAL IDENTIFIER"
                         />
@@ -312,41 +349,52 @@ export default function OnboardingPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Jurisdiction</label>
-                          <select className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none">
-                            <option>SELECT REGION</option>
-                            <option>US - NORTH AMERICA</option>
-                            <option>UK - EUROPE</option>
-                            <option>SG - ASIA PACIFIC</option>
-                            <option>CH - OFFSHORE</option>
+                          <select 
+                            value={state.compliance.jurisdiction}
+                            onChange={(e) => setState(prev => ({ ...prev, compliance: { ...prev.compliance, jurisdiction: e.target.value } }))}
+                            className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none"
+                          >
+                            <option value="">SELECT REGION</option>
+                            <option value="US">US - NORTH AMERICA</option>
+                            <option value="UK">UK - EUROPE</option>
+                            <option value="SG">SG - ASIA PACIFIC</option>
+                            <option value="CH">CH - OFFSHORE</option>
                           </select>
                         </div>
                         <div className="space-y-2">
                           <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Entity Type</label>
-                          <select className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none">
-                            <option>INDIVIDUAL</option>
-                            <option>CORPORATION</option>
-                            <option>INSTITUTIONAL FUND</option>
-                            <option>TRUST / SPV</option>
+                          <select 
+                            value={state.compliance.entityType}
+                            onChange={(e) => setState(prev => ({ ...prev, compliance: { ...prev.compliance, entityType: e.target.value } }))}
+                            className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none"
+                          >
+                            <option value="individual">INDIVIDUAL</option>
+                            <option value="corporation">CORPORATION</option>
+                            <option value="fund">INSTITUTIONAL FUND</option>
+                            <option value="trust">TRUST / SPV</option>
                           </select>
                         </div>
                       </div>
 
-                      {state.selectedRoles.includes('ALLOCATOR') && (
+                      {state.selectedRoles.includes('LENDER') && (
                         <div className="p-6 border border-border-dark bg-white/5 space-y-4">
                           <div className="flex items-center gap-2">
-                            <svg className="size-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
+                            <span className="material-symbols-outlined text-white text-sm">verified_user</span>
                             <span className="text-[10px] uppercase tracking-widest text-white">Accreditation Declaration</span>
                           </div>
                           <p className="text-[11px] text-[#888] leading-relaxed">
-                            Capital Allocators must verify "Qualified Investor" or "Accredited" status 
-                            to access the contract marketplace. By checking this box, you confirm 
-                            regulatory compliance in your jurisdiction.
+                            Lenders must verify "Qualified Investor" or "Accredited" status 
+                            to access the credit marketplace. By checking this box, you confirm 
+                            regulatory compliance.
                           </p>
                           <label className="flex items-center gap-3 cursor-pointer group">
-                            <div className="size-4 border border-[#4a4a4a] group-hover:border-white flex items-center justify-center">
-                              <div className="size-2 bg-white scale-0 transition-transform group-active:scale-100" />
+                            <div 
+                              onClick={() => setState(prev => ({ ...prev, compliance: { ...prev.compliance, accreditationConfirmed: !prev.compliance.accreditationConfirmed } }))}
+                              className={`size-4 border transition-all flex items-center justify-center ${
+                                state.compliance.accreditationConfirmed ? 'border-white bg-white text-black' : 'border-[#4a4a4a] group-hover:border-white'
+                              }`}
+                            >
+                              {state.compliance.accreditationConfirmed && <span className="material-symbols-outlined text-[10px] font-bold">check</span>}
                             </div>
                             <span className="text-[10px] uppercase text-[#888] group-hover:text-white transition-colors">Confirm Status</span>
                           </label>
@@ -385,62 +433,82 @@ export default function OnboardingPage() {
                     <div className="space-y-10">
                       {state.selectedRoles.includes('BORROWER') && (
                         <div className="space-y-6">
-                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Borrower Analytics Input</span>
+                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Borrower Financial Profile</span>
                           <div className="space-y-4">
-                            <div className="p-6 border border-border-dark bg-black">
-                              <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a] block mb-4">Verification Artifacts</label>
-                              <div className="grid grid-cols-2 gap-4">
-                                <button className="border border-border-dark py-3 text-[10px] uppercase hover:bg-white hover:text-black transition-all">Link Banking API</button>
-                                <button className="border border-border-dark py-3 text-[10px] uppercase hover:bg-white hover:text-black transition-all">Upload Payroll</button>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Annual Income Volume</label>
+                                <input 
+                                  value={state.financial.annualVolume}
+                                  onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, annualVolume: e.target.value } }))}
+                                  className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none placeholder:text-border-dark"
+                                  placeholder="E.G. $1.2M"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Primary Income Stream</label>
+                                <select className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none">
+                                  <option>SUBSCRIPTION / SAAS</option>
+                                  <option>DIRECT SALES / COMMERCE</option>
+                                  <option>PAYROLL / SALARY</option>
+                                  <option>AD REVENUE</option>
+                                </select>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4 text-[10px] uppercase text-[#4a4a4a]">
-                              <div className="p-4 border border-[#1a1a1a]">
-                                <span className="block mb-2">Income Source</span>
-                                <span className="text-white block">AWAITING CONNECTION...</span>
-                              </div>
-                              <div className="p-4 border border-[#1a1a1a]">
-                                <span className="block mb-2">Stability Index</span>
-                                <span className="text-white block">TBD</span>
+                            <div className="p-6 border border-border-dark bg-black space-y-4">
+                              <label className="text-[10px] uppercase tracking-widest text-white block">Verification Layer</label>
+                              <p className="text-[11px] text-[#888] mb-4">
+                                Quantara requires direct programmatic access to income sources for 
+                                real-time securitization.
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <button className="border border-border-dark py-3 text-[10px] uppercase hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2">
+                                  <span className="material-symbols-outlined text-sm">link</span>
+                                  Link Banking API
+                                </button>
+                                <button className="border border-border-dark py-3 text-[10px] uppercase hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2">
+                                  <span className="material-symbols-outlined text-sm">upload_file</span>
+                                  Upload Tax Returns
+                                </button>
                               </div>
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {state.selectedRoles.includes('ALLOCATOR') && (
+                      {state.selectedRoles.includes('LENDER') && (
                         <div className="space-y-6">
                           <span className="text-[10px] uppercase tracking-[0.3em] text-white">Capital Allocation Params</span>
                           <div className="space-y-8">
                             <div className="space-y-4">
                               <div className="flex justify-between items-baseline">
-                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Risk Appetite Scale</label>
-                                <span className="text-lg font-bold">R / {state.financial.riskTolerance}</span>
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Target Risk Weight (%)</label>
+                                <span className="text-lg font-bold">RW / {state.financial.riskTolerance}</span>
                               </div>
                               <input 
                                 type="range" 
                                 min="0" max="100" 
                                 value={state.financial.riskTolerance}
                                 onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, riskTolerance: parseInt(e.target.value) } }))}
-                                className="w-full accent-white appearance-none h-px bg-border-dark"
+                                className="w-full accent-white appearance-none h-px bg-border-dark cursor-pointer"
                               />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Deployment Horizon</label>
-                                <select className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none">
-                                  <option>6 - 12 MONTHS</option>
-                                  <option>12 - 24 MONTHS</option>
-                                  <option>24 - 48 MONTHS</option>
-                                </select>
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Deployment Limit</label>
+                                <input 
+                                  value={state.financial.deploymentLimit}
+                                  onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, deploymentLimit: e.target.value } }))}
+                                  className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none placeholder:text-border-dark"
+                                  placeholder="E.G. $5M"
+                                />
                               </div>
                               <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Yield Objective</label>
-                                <select className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none appearance-none">
-                                  <option>MODERATE (4-8%)</option>
-                                  <option>GROWTH (8-14%)</option>
-                                  <option>AGGRESSIVE (15+%)</option>
-                                </select>
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Target Yield (%)</label>
+                                <input 
+                                  className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none"
+                                  placeholder="E.G. 8.5%"
+                                />
                               </div>
                             </div>
                           </div>
@@ -462,26 +530,24 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="space-y-6">
-                      <div className="p-8 border-2 border-white bg-white/5 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-10">
-                          <svg className="size-24 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                          </svg>
-                        </div>
-                        <span className="text-[10px] uppercase tracking-[0.3em] text-white block mb-6">Interactive Stress Simulation</span>
-                        <div className="space-y-6">
-                          <p className="text-xs text-[#888] leading-relaxed">
-                            "SCENARIO: Macro volatility event causes 20% systemic income reduction across 
-                            selected sectors. Liquidity buffer triggers required. How should the system respond?"
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <button className="border border-white py-4 text-[10px] uppercase bg-white text-black font-bold">Harden Buffers</button>
-                            <button className="border border-border-dark py-4 text-[10px] uppercase hover:border-white transition-all">Maintain Throughput</button>
-                          </div>
-                        </div>
-                      </div>
+                       <div className="p-8 border border-border-dark bg-white/5 relative overflow-hidden backdrop-blur-sm">
+                         <div className="absolute top-0 right-0 p-4 opacity-5">
+                           <span className="material-symbols-outlined text-[80px] text-white">analytics</span>
+                         </div>
+                         <span className="text-[10px] uppercase tracking-[0.3em] text-[#888] block mb-6">Interactive Stress Simulation</span>
+                         <div className="space-y-6 relative z-10">
+                           <p className="text-sm text-white leading-relaxed font-light">
+                             "SCENARIO: Macro volatility event causes 20% systemic income reduction. 
+                             Liquidity buffer thresholds reached. Engine requires response policy."
+                           </p>
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                             <button className="border border-white py-4 text-[10px] uppercase bg-white text-black font-bold hover:bg-[#888] transition-all">Harden Buffers</button>
+                             <button className="border border-border-dark py-4 text-[10px] uppercase hover:border-white transition-all text-white">Aggressive Deploy</button>
+                           </div>
+                         </div>
+                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 h-32">
+                       <div className="grid grid-cols-3 gap-4 h-32">
                         {[1, 2, 3].map(i => (
                           <div key={i} className="border border-[#1a1a1a] flex flex-col items-center justify-center p-4 relative bg-background-dark group">
                             <div className="h-full w-px bg-border-dark absolute left-1/2 -ml-px group-hover:bg-white transition-colors" />
@@ -507,17 +573,20 @@ export default function OnboardingPage() {
 
                     <div className="space-y-4">
                       {[
-                        { scope: 'READ_ACCESS', status: 'AUTHORIZED', desc: 'Symmetric data visibility' },
-                        { scope: 'CONTRACT_INIT', status: 'AUTHORIZED', desc: 'Operational execution rights' },
-                        { scope: 'LEDGER_WRITE', status: 'AUTHORIZED', desc: 'Signature authority assigned' },
-                        { scope: 'RISK_READ', status: 'AUTHORIZED', desc: 'Real-time telemetry access' },
+                        { scope: 'READ_ACCESS', status: 'AUTHORIZED', desc: 'Symmetric data visibility', icon: 'visibility' },
+                        { scope: 'CONTRACT_INIT', status: 'AUTHORIZED', desc: 'Securitization execution rights', icon: 'account_tree' },
+                        { scope: 'LEDGER_WRITE', status: 'AUTHORIZED', desc: 'Signature authority assigned', icon: 'draw' },
+                        { scope: 'RISK_READ', status: 'AUTHORIZED', desc: 'Real-time telemetry access', icon: 'sensors' },
                       ].map(perm => (
-                        <div key={perm.scope} className="flex items-center justify-between p-4 border border-[#1a1a1a] bg-black group hover:border-border-dark transition-all">
-                          <div>
-                            <span className="text-xs font-bold block">{perm.scope}</span>
-                            <span className="text-[9px] text-[#4a4a4a] uppercase tracking-widest mt-1 block">{perm.desc}</span>
+                        <div key={perm.scope} className="flex items-center justify-between p-4 border border-border-dark bg-black/40 group hover:border-white/40 transition-all">
+                          <div className="flex items-center gap-4">
+                            <span className="material-symbols-outlined text-[#4a4a4a] text-lg group-hover:text-white transition-colors">{perm.icon}</span>
+                            <div>
+                              <span className="text-xs font-bold block">{perm.scope}</span>
+                              <span className="text-[9px] text-[#4a4a4a] uppercase tracking-widest mt-1 block">{perm.desc}</span>
+                            </div>
                           </div>
-                          <span className="text-[10px] text-white border border-white px-2 py-1 font-bold group-hover:bg-white group-hover:text-black transition-all">
+                          <span className="text-[9px] text-white border border-white/20 px-2 py-1 uppercase tracking-tighter group-hover:border-white transition-all">
                             {perm.status}
                           </span>
                         </div>
@@ -530,14 +599,12 @@ export default function OnboardingPage() {
                 {state.currentPhase === 'ACTIVATION' && (
                   <div className="space-y-12">
                     <div className="text-center space-y-6">
-                      <div className="size-20 bg-white mx-auto flex items-center justify-center rounded-full">
-                        <svg className="size-12 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
+                      <div className="size-20 bg-white mx-auto flex items-center justify-center rounded-full shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+                        <span className="material-symbols-outlined text-black text-4xl">check_circle</span>
                       </div>
                       <div className="space-y-2">
                         <h1 className="text-3xl font-light uppercase tracking-tighter">Operational Activation</h1>
-                        <p className="text-[#888] text-sm uppercase tracking-widest">Provisioning Complete // Session Valid</p>
+                        <p className="text-[#888] text-[10px] uppercase tracking-[0.4em]">Provisioning Complete // Session Valid</p>
                       </div>
                     </div>
 
@@ -547,23 +614,21 @@ export default function OnboardingPage() {
                         <div className="space-y-2">
                           {state.selectedRoles.includes('BORROWER') && (
                             <Link href="/borrower" className="w-full p-4 border border-border-dark flex items-center justify-between group hover:border-white transition-all bg-white/5">
-                              <span className="text-xs uppercase font-bold tracking-widest">Access Borrower Dashboard</span>
+                              <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-sm">payments</span>
+                                <span className="text-xs uppercase font-bold tracking-widest">Access Borrower Dashboard</span>
+                              </div>
                               <svg className="size-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                               </svg>
                             </Link>
                           )}
-                          {state.selectedRoles.includes('ALLOCATOR') && (
+                          {state.selectedRoles.includes('LENDER') && (
                             <Link href="/terminal" className="w-full p-4 border border-border-dark flex items-center justify-between group hover:border-white transition-all bg-white/5">
-                              <span className="text-xs uppercase font-bold tracking-widest">Launch Capital Terminal</span>
-                              <svg className="size-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                              </svg>
-                            </Link>
-                          )}
-                          {state.selectedRoles.includes('OPERATOR') && (
-                            <Link href="/operator" className="w-full p-4 border border-border-dark flex items-center justify-between group hover:border-white transition-all bg-white/5">
-                              <span className="text-xs uppercase font-bold tracking-widest">Enter Operator Console</span>
+                              <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-sm">account_balance</span>
+                                <span className="text-xs uppercase font-bold tracking-widest">Launch Capital Terminal</span>
+                              </div>
                               <svg className="size-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                               </svg>
@@ -608,17 +673,15 @@ export default function OnboardingPage() {
             {state.currentPhase !== 'ACTIVATION' && (
               <button 
                 onClick={nextPhase}
-                disabled={state.currentPhase === 'INITIALIZATION' && state.selectedRoles.length === 0}
+                disabled={!canContinue()}
                 className={`text-[10px] uppercase font-bold tracking-widest px-8 py-3 transition-all flex items-center gap-2 ${
-                  state.currentPhase === 'INITIALIZATION' && state.selectedRoles.length === 0
-                  ? 'bg-[#1a1a1a] text-[#4a4a4a] cursor-not-allowed'
+                  !canContinue()
+                  ? 'bg-border-dark text-[#4a4a4a] cursor-not-allowed'
                   : 'bg-white text-black hover:bg-[#888]'
                 }`}
               >
                 <span>Continue</span>
-                <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
+                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
               </button>
             )}
             {state.currentPhase === 'ACTIVATION' && (
