@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-dark: #0a0a0a;
+  --color-surface-dark: #141414;
+  --color-border-dark: #262626;
+  --color-text-secondary: #888888;
+  
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: "SF Mono", ui-monospace, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border-dark);
+  }
+
+  body {
+    background-color: #0a0a0a;
+    color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .ticker-wrap {
+    width: 100%;
+    overflow: hidden;
+    background-color: #000;
+  }
+
+  .ticker {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker 30s linear infinite;
+  }
+
+  @keyframes ticker {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  .grid-pattern {
+    background-image: linear-gradient(#262626 1px, transparent 1px), linear-gradient(90deg, #262626 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}

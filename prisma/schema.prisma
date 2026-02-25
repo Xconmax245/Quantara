@@ -1,0 +1,366 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ======================== AUTH ========================
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String?
+  walletAddress  String?  @unique
+  role           UserRole @default(BORROWER)
+  displayName    String
+  isBlacklisted  Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incomeSources      IncomeSource[]
+  riskProfile        RiskProfile?
+  borrowerContracts  StructuredContract[] @relation("BorrowerContracts")
+  investmentPositions InvestmentPosition[]
+  complianceFlags    ComplianceFlag[]
+  auditLogs          AuditLog[]
+
+  @@index([walletAddress])
+  @@index([role])
+}
+
+enum UserRole {
+  BORROWER
+  LENDER
+  OPERATOR
+}
+
+// ======================== INCOME ========================
+
+model IncomeSource {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  type           IncomeType
+  name           String
+  amount         Float
+  frequency      PaymentFrequency
+  verifiedAt     DateTime?
+  volatility     Float           @default(0)
+  stabilityIndex Float           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  historicalEarnings HistoricalEarning[]
+
+  @@index([userId])
+}
+
+enum IncomeType {
+  SALARY
+  FREELANCE
+  BUSINESS
+  INVESTMENT
+  RENTAL
+  OTHER
+}
+
+enum PaymentFrequency {
+  WEEKLY
+  BI_WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUALLY
+}
+
+model HistoricalEarning {
+  id             String       @id @default(cuid())
+  incomeSourceId String
+  incomeSource   IncomeSource @relation(fields: [incomeSourceId], references: [id])
+  month          String
+  amount         Float
+  verified       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([incomeSourceId])
+}
+
+// ======================== RISK ENGINE ========================
+
+model RiskProfile {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  user                 User    @relation(fields: [userId], references: [id])
+  riskScore            Float
+  probabilityOfDefault Float
+  confidenceLower      Float
+  confidenceUpper      Float
+  tier                 String
+  
+  incomeStability      Float
+  repaymentHistory     Float
+  sectorCoefficient    Float
+  liquidityBuffer      Float
+
+  lastCalculated DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  history RiskScoreHistory[]
+
+  @@index([riskScore])
+  @@index([userId])
+}
+
+model RiskScoreHistory {
+  id                   String      @id @default(cuid())
+  riskProfileId        String
+  riskProfile          RiskProfile @relation(fields: [riskProfileId], references: [id])
+  score                Float
+  probabilityOfDefault Float
+  createdAt            DateTime    @default(now())
+
+  @@index([riskProfileId])
+}
+
+// ======================== CONTRACTS ========================
+
+model StructuredContract {
+  id              String         @id @default(cuid())
+  borrowerId      String
+  borrower        User           @relation("BorrowerContracts", fields: [borrowerId], references: [id])
+  nftId           String         @unique
+  principal       Float
+  interestRate    Float
+  term            Int            // months
+  monthlyPayment  Float
+  status          ContractStatus @default(CREATED)
+  riskTier        String
+  riskScore       Float
+  fundedAmount    Float          @default(0)
+
+  poolId    String?
+  pool      CapitalPool? @relation(fields: [poolId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repaymentSchedule RepaymentEntry[]
+  complianceFlags   ComplianceFlag[]
+  transactionEvents TransactionEvent[]
+
+  @@index([borrowerId])
+  @@index([poolId])
+  @@index([riskScore])
+  @@index([status])
+}
+
+enum ContractStatus {
+  CREATED
+  FUNDED
+  ACTIVE
+  COMPLETED
+  DEFAULTED
+}
+
+model RepaymentEntry {
+  id         String            @id @default(cuid())
+  contractId String
+  contract   StructuredContract @relation(fields: [contractId], references: [id])
+  dueDate    DateTime
+  amount     Float
+  status     RepaymentStatus   @default(PENDING)
+  paidAt     DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([contractId])
+}
+
+enum RepaymentStatus {
+  PENDING
+  PAID
+  LATE
+  MISSED
+}
+
+// ======================== CAPITAL ========================
+
+model CapitalPool {
+  id              String   @id @default(cuid())
+  name            String
+  totalCapital    Float
+  deployedCapital Float    @default(0)
+  availableCapital Float
+  targetYield     Float
+  actualYield     Float    @default(0)
+  riskTierFilter  String[] // Array of risk tier strings
+  investorCount   Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contracts       StructuredContract[]
+  positions       InvestmentPosition[]
+  insuranceVault  InsuranceVault?
+
+  @@index([id])
+}
+
+model InvestmentPosition {
+  id           String          @id @default(cuid())
+  investorId   String
+  investor     User            @relation(fields: [investorId], references: [id])
+  poolId       String
+  pool         CapitalPool     @relation(fields: [poolId], references: [id])
+  amount       Float
+  entryDate    DateTime        @default(now())
+  currentValue Float
+  yield        Float           @default(0)
+  status       PositionStatus  @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([investorId])
+  @@index([poolId])
+}
+
+enum PositionStatus {
+  ACTIVE
+  MATURED
+  WITHDRAWN
+}
+
+// ======================== INSURANCE ========================
+
+model InsuranceVault {
+  id            String @id @default(cuid())
+  poolId        String @unique
+  pool          CapitalPool @relation(fields: [poolId], references: [id])
+  totalReserve  Float
+  coverageRatio Float
+  claimsPaid    Float  @default(0)
+  status        InsuranceStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum InsuranceStatus {
+  ACTIVE
+  DEPLETED
+  SUSPENDED
+}
+
+// ======================== COMPLIANCE ========================
+
+model ComplianceFlag {
+  id          String         @id @default(cuid())
+  contractId  String?
+  contract    StructuredContract? @relation(fields: [contractId], references: [id])
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id])
+  type        FlagType
+  severity    FlagSeverity
+  title       String
+  description String
+  status      FlagStatus     @default(OPEN)
+  resolvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([userId])
+  @@index([severity])
+}
+
+enum FlagType {
+  FRAUD_ALERT
+  KYC_ISSUE
+  VOLATILITY_FLAG
+  RATE_LIMIT
+  BLACKLIST
+}
+
+enum FlagSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FlagStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+}
+
+// ======================== EVENTS & AUDIT ========================
+
+model TransactionEvent {
+  id          String    @id @default(cuid())
+  type        EventType
+  payload     Json
+  contractId  String?
+  contract    StructuredContract? @relation(fields: [contractId], references: [id])
+  blockNumber Int?
+  txHash      String?
+
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([contractId])
+}
+
+enum EventType {
+  CONTRACT_CREATED
+  CAPITAL_ALLOCATED
+  REPAYMENT_RECEIVED
+  DEFAULT_TRIGGERED
+  RISK_UPDATED
+  COMPLIANCE_FLAGGED
+  INSURANCE_TRIGGERED
+  POOL_REBALANCED
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  details   Json
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ======================== PROTOCOL METRICS ========================
+
+model ProtocolMetrics {
+  id                  String   @id @default(cuid())
+  tvl                 Float
+  activeContracts     Int
+  defaultRate         Float
+  liquidityBuffer     Float
+  transactionVolume24h Float
+  activeOperators     Int
+  pendingAudits       Int
+  systemHealth        Float
+  blockFinalityTime   Float
+  activeValidators    Int
+  totalValidators     Int
+  gasPrice            Float
+  networkLoad         Float
+
+  recordedAt DateTime @default(now())
+
+  @@index([recordedAt])
+}
