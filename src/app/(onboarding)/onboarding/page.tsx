@@ -41,12 +41,12 @@ interface OnboardingState {
 }
 
 const PHASES: { id: OnboardingPhase; label: string; ordinal: string }[] = [
-  { id: 'INITIALIZATION', label: 'Identity Initialization', ordinal: '01' },
-  { id: 'COMPLIANCE', label: 'Compliance & Legal Layer', ordinal: '02' },
-  { id: 'FINANCIAL_STRUCTURING', label: 'Financial Profile Structuring', ordinal: '03' },
-  { id: 'RISK_CALIBRATION', label: 'Risk Calibration', ordinal: '04' },
-  { id: 'PERMISSIONS', label: 'System Permissions', ordinal: '05' },
-  { id: 'ACTIVATION', label: 'Operational Activation', ordinal: '06' },
+  { id: 'INITIALIZATION', label: 'Account Setup', ordinal: '01' },
+  { id: 'COMPLIANCE', label: 'Verification', ordinal: '02' },
+  { id: 'FINANCIAL_STRUCTURING', label: 'Financial Profile', ordinal: '03' },
+  { id: 'RISK_CALIBRATION', label: 'Risk Profile', ordinal: '04' },
+  { id: 'PERMISSIONS', label: 'Access Rights', ordinal: '05' },
+  { id: 'ACTIVATION', label: 'Finish', ordinal: '06' },
 ];
 
 export default function OnboardingPage() {
@@ -88,7 +88,11 @@ export default function OnboardingPage() {
   const canContinue = () => {
     switch (state.currentPhase) {
       case 'INITIALIZATION':
-        return state.selectedRoles.length > 0 && state.identity.email.includes('@');
+        const roleSelected = state.selectedRoles.length > 0;
+        if (state.identity.authMethod === 'PASSWORD') {
+          return roleSelected && state.identity.email.includes('@');
+        }
+        return roleSelected;
       case 'COMPLIANCE':
         return state.compliance.legalName.length > 2 && state.compliance.jurisdiction !== '';
       case 'FINANCIAL_STRUCTURING':
@@ -137,7 +141,7 @@ export default function OnboardingPage() {
             <span className="text-[11px] font-bold tracking-[0.2em] uppercase">Quantara // OS</span>
           </div>
           <div className="hidden md:flex items-center gap-4 text-[#4a4a4a] text-[10px] uppercase tracking-widest">
-            <span>System Provisioning</span>
+            <span>Protocol Access</span>
             <span className="size-1 bg-border-dark rounded-full" />
             <span>v.2.0.4</span>
           </div>
@@ -200,7 +204,7 @@ export default function OnboardingPage() {
                         {p.label}
                       </span>
                       {isActive && (
-                        <motion.span layoutId="activeStep" className="text-[9px] text-[#4a4a4a] mt-1 italics">PROCESSING...</motion.span>
+                        <motion.span layoutId="activeStep" className="text-[9px] text-[#4a4a4a] mt-1 italics">IN PROGRESS</motion.span>
                       )}
                     </div>
                   </div>
@@ -212,12 +216,12 @@ export default function OnboardingPage() {
           <div className="p-8 border-t border-border-dark">
             <div className="space-y-2 text-[10px] text-[#4a4a4a] uppercase">
               <div className="flex justify-between">
-                <span>Entropy Status</span>
-                <span className="text-white">OPTIMAL</span>
+                <span>Security</span>
+                <span className="text-white">ENCRYPTED</span>
               </div>
               <div className="flex justify-between">
-                <span>Encryption</span>
-                <span className="text-white">AES-256</span>
+                <span>Network</span>
+                <span className="text-white">STABLE</span>
               </div>
             </div>
           </div>
@@ -239,55 +243,89 @@ export default function OnboardingPage() {
                 {state.currentPhase === 'INITIALIZATION' && (
                   <div className="space-y-12">
                     <div className="space-y-4">
-                      <h1 className="text-2xl font-light uppercase tracking-tighter">Initialize Operational Identity</h1>
+                      <h1 className="text-2xl font-light uppercase tracking-tighter">Get Started</h1>
                       <div className="space-y-4 max-w-lg">
                         <p className="text-[#888] text-sm leading-relaxed">
-                          Establish authenticated context. Quantara requires session initialization 
-                          before compliance provisioning.
+                          Welcome to Quantara. Choose your preferred way to access the protocol and join the next generation of credit markets.
                         </p>
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Institutional Email</label>
-                          <input 
-                            type="email"
-                            value={state.identity.email}
-                            onChange={(e) => setState(prev => ({ ...prev, identity: { ...prev.identity, email: e.target.value } }))}
-                            className="w-full bg-transparent border border-border-dark p-4 text-sm focus:border-white focus:outline-none transition-all placeholder:text-border-dark" 
-                            placeholder="OPERATOR@CORE.QUANTARA.IO"
-                          />
-                        </div>
                       </div>
                     </div>
 
                     <div className="space-y-8">
                       <div className="p-6 border border-border-dark bg-white/5 space-y-6">
                         <div className="flex items-center gap-3">
-                          <span className="material-symbols-outlined text-white">fingerprint</span>
-                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Security Protocol Selection</span>
+                          <span className="material-symbols-outlined text-white">login</span>
+                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Choose Authentication Method</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <button 
                             onClick={() => setState(prev => ({ ...prev, identity: { ...prev.identity, authMethod: 'PASSWORD' } }))}
-                            className={`p-4 border text-left transition-all ${state.identity.authMethod === 'PASSWORD' ? 'border-white bg-white/10' : 'border-border-dark text-[#888] hover:border-white/50'}`}
+                            className={`p-6 border text-left transition-all relative ${state.identity.authMethod === 'PASSWORD' ? 'border-white bg-white/10' : 'border-border-dark text-[#888] hover:border-white/50'}`}
                           >
+                            <span className="material-symbols-outlined mb-2 text-xl">mail</span>
                             <span className="text-[10px] block mb-1">Method A</span>
-                            <span className="text-xs font-bold block uppercase">Institutional Auth</span>
+                            <span className="text-xs font-bold block uppercase">Email Account</span>
                           </button>
                           <button 
                             onClick={() => setState(prev => ({ ...prev, identity: { ...prev.identity, authMethod: 'WALLET' } }))}
-                            className={`p-4 border text-left transition-all ${state.identity.authMethod === 'WALLET' ? 'border-white bg-white/10' : 'border-border-dark text-[#888] hover:border-white/50'}`}
+                            className={`p-6 border text-left transition-all relative ${state.identity.authMethod === 'WALLET' ? 'border-white bg-white/10' : 'border-border-dark text-[#888] hover:border-white/50'}`}
                           >
+                            <span className="material-symbols-outlined mb-2 text-xl">account_balance_wallet</span>
                             <span className="text-[10px] block mb-1">Method B</span>
-                            <span className="text-xs font-bold block uppercase">Web3 Identity</span>
+                            <span className="text-xs font-bold block uppercase">Web3 Wallet</span>
                           </button>
                         </div>
+
+                        {state.identity.authMethod === 'PASSWORD' && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="space-y-4 pt-4 border-t border-border-dark"
+                          >
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Email Address</label>
+                              <input 
+                                type="email"
+                                value={state.identity.email}
+                                onChange={(e) => setState(prev => ({ ...prev, identity: { ...prev.identity, email: e.target.value } }))}
+                                className="w-full bg-transparent border border-border-dark p-4 text-sm focus:border-white focus:outline-none transition-all placeholder:text-border-dark" 
+                                placeholder="YOUR@EMAIL.COM"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Password</label>
+                              <input 
+                                type="password"
+                                className="w-full bg-transparent border border-border-dark p-4 text-sm focus:border-white focus:outline-none transition-all placeholder:text-border-dark" 
+                                placeholder="••••••••"
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {state.identity.authMethod === 'WALLET' && (
+                          <motion.div 
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="pt-4 border-t border-border-dark"
+                          >
+                            <button className="w-full border border-white p-4 text-[10px] uppercase font-bold hover:bg-white hover:text-black transition-all flex items-center justify-center gap-2">
+                              <span className="material-symbols-outlined text-sm">account_balance_wallet</span>
+                              Connect Wallet
+                            </button>
+                            <p className="text-[9px] text-[#4a4a4a] text-center mt-3 uppercase tracking-widest">
+                              Supports MetaMask, WalletConnect, and Stacks
+                            </p>
+                          </motion.div>
+                        )}
                       </div>
 
                       <div className="border-t border-border-dark pt-12">
-                        <span className="text-[10px] uppercase tracking-[0.3em] text-[#4a4a4a] block mb-6">Select Operational Intent</span>
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-[#4a4a4a] block mb-6">What is your goal?</span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {[
-                            { id: 'BORROWER', title: 'Borrower', desc: 'I provide structured income', icon: 'payments' },
-                            { id: 'LENDER', title: 'Lender', desc: 'I allocate capital', icon: 'account_balance' },
+                            { id: 'BORROWER', title: 'Borrower', desc: 'I want to borrow against my income', icon: 'payments' },
+                            { id: 'LENDER', title: 'Lender', desc: 'I want to lend and earn yield', icon: 'account_balance' },
                           ].map((role) => (
                             <button
                               key={role.id}
@@ -328,21 +366,21 @@ export default function OnboardingPage() {
                 {state.currentPhase === 'COMPLIANCE' && (
                   <div className="space-y-12">
                     <div className="space-y-4">
-                      <h1 className="text-2xl font-light uppercase tracking-tighter text-white">Compliance & Legal Layer</h1>
+                      <h1 className="text-2xl font-light uppercase tracking-tighter text-white">Verification</h1>
                       <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Establishing legal jurisdiction and entity parameters for 
-                        <span className="text-white ml-2 font-bold">{state.selectedRoles.join(' + ')}</span> operations.
+                        Confirming your details for 
+                        <span className="text-white ml-2 font-bold">{state.selectedRoles.join(' + ')}</span> access.
                       </p>
                     </div>
 
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Legal Entity Name</label>
+                        <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Full Legal Name</label>
                         <input 
                           value={state.compliance.legalName}
                           onChange={(e) => setState(prev => ({ ...prev, compliance: { ...prev.compliance, legalName: e.target.value } }))}
                           className="w-full bg-transparent border border-border-dark p-4 text-sm focus:border-white focus:outline-none transition-all placeholder:text-border-dark" 
-                          placeholder="FULL LEGAL IDENTIFIER"
+                          placeholder="AS IT APPEARS ON ID"
                         />
                       </div>
                       
@@ -380,12 +418,11 @@ export default function OnboardingPage() {
                         <div className="p-6 border border-border-dark bg-white/5 space-y-4">
                           <div className="flex items-center gap-2">
                             <span className="material-symbols-outlined text-white text-sm">verified_user</span>
-                            <span className="text-[10px] uppercase tracking-widest text-white">Accreditation Declaration</span>
+                            <span className="text-[10px] uppercase tracking-widest text-white">Investor Confirmation</span>
                           </div>
                           <p className="text-[11px] text-[#888] leading-relaxed">
-                            Lenders must verify "Qualified Investor" or "Accredited" status 
-                            to access the credit marketplace. By checking this box, you confirm 
-                            regulatory compliance.
+                            Lenders are typically required to confirm their status as an accredited or professional investor 
+                            to join the credit marketplace.
                           </p>
                           <label className="flex items-center gap-3 cursor-pointer group">
                             <div 
@@ -423,26 +460,25 @@ export default function OnboardingPage() {
                 {state.currentPhase === 'FINANCIAL_STRUCTURING' && (
                   <div className="space-y-12">
                     <div className="space-y-4">
-                      <h1 className="text-2xl font-light uppercase tracking-tighter">Financial Profile Structuring</h1>
+                      <h1 className="text-2xl font-light uppercase tracking-tighter">Financial Profile</h1>
                       <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Establishing structural constraints for role execution. Inputs are mapped 
-                        to real-time risk modeling vectors.
+                        Providing the necessary data to personalize your experience.
                       </p>
                     </div>
 
                     <div className="space-y-10">
                       {state.selectedRoles.includes('BORROWER') && (
                         <div className="space-y-6">
-                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Borrower Financial Profile</span>
+                          <span className="text-[10px] uppercase tracking-[0.3em] text-white">Financial Details</span>
                           <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Annual Income Volume</label>
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Annual Income</label>
                                 <input 
                                   value={state.financial.annualVolume}
                                   onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, annualVolume: e.target.value } }))}
                                   className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none placeholder:text-border-dark"
-                                  placeholder="E.G. $1.2M"
+                                  placeholder="E.G. $50,000"
                                 />
                               </div>
                               <div className="space-y-2">
@@ -482,8 +518,8 @@ export default function OnboardingPage() {
                           <div className="space-y-8">
                             <div className="space-y-4">
                               <div className="flex justify-between items-baseline">
-                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Target Risk Weight (%)</label>
-                                <span className="text-lg font-bold">RW / {state.financial.riskTolerance}</span>
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Risk Preference (%)</label>
+                                <span className="text-lg font-bold">Level / {state.financial.riskTolerance}</span>
                               </div>
                               <input 
                                 type="range" 
@@ -495,12 +531,12 @@ export default function OnboardingPage() {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
-                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Deployment Limit</label>
+                                <label className="text-[10px] uppercase tracking-widest text-[#4a4a4a]">Investment Limit</label>
                                 <input 
                                   value={state.financial.deploymentLimit}
                                   onChange={(e) => setState(prev => ({ ...prev, financial: { ...prev.financial, deploymentLimit: e.target.value } }))}
                                   className="w-full bg-background-dark border border-border-dark p-4 text-sm focus:border-white focus:outline-none placeholder:text-border-dark"
-                                  placeholder="E.G. $5M"
+                                  placeholder="E.G. $5,000"
                                 />
                               </div>
                               <div className="space-y-2">
@@ -522,10 +558,9 @@ export default function OnboardingPage() {
                 {state.currentPhase === 'RISK_CALIBRATION' && (
                   <div className="space-y-12">
                     <div className="space-y-4">
-                      <h1 className="text-2xl font-light uppercase tracking-tighter">System Risk Calibration</h1>
+                      <h1 className="text-2xl font-light uppercase tracking-tighter">Risk Profile</h1>
                       <p className="text-[#888] text-sm leading-relaxed max-w-lg">
-                        Calibrating response thresholds for the Quantara engine. This ensures 
-                        consistency between operational intent and system execution.
+                        Defining your risk parameters to ensure the engine operates according to your preferences.
                       </p>
                     </div>
 
@@ -602,10 +637,10 @@ export default function OnboardingPage() {
                       <div className="size-20 bg-white mx-auto flex items-center justify-center rounded-full shadow-[0_0_30px_rgba(255,255,255,0.3)]">
                         <span className="material-symbols-outlined text-black text-4xl">check_circle</span>
                       </div>
-                      <div className="space-y-2">
-                        <h1 className="text-3xl font-light uppercase tracking-tighter">Operational Activation</h1>
-                        <p className="text-[#888] text-[10px] uppercase tracking-[0.4em]">Provisioning Complete // Session Valid</p>
-                      </div>
+                      <div className="space-y-4">
+                      <h1 className="text-2xl font-light uppercase tracking-tighter text-white">Setup Complete</h1>
+                      <p className="text-[#888] text-[10px] uppercase tracking-[0.4em]">Account Verified // Access Granted</p>
+                    </div>
                     </div>
 
                     <div className="bg-[#0c0c0c] border border-border-dark p-8 space-y-8">
@@ -639,10 +674,9 @@ export default function OnboardingPage() {
 
                       <div className="pt-8 border-t border-border-dark flex justify-between items-center text-[10px] text-[#4a4a4a] uppercase">
                         <div className="flex gap-4">
-                          <span>Session: VALID</span>
-                          <span>Uptime: 00:04:12</span>
+                          <span>Secure Session Active</span>
                         </div>
-                        <span>ID: {Math.random().toString(16).slice(2, 10).toUpperCase()}</span>
+                        <span className="text-white">Welcome to Quantara</span>
                       </div>
                     </div>
                   </div>
